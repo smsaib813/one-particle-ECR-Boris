@@ -25,7 +25,7 @@ k = 1/(4*math.pi*eps0)
 q = cst.e
 m = cst.m_e
 N = 1 #number of particles
-inj = 0.5E-8 #microwave injection time
+inj = 1E-11 #microwave injection time
 Lamda = abs(cst.c/(q*0.7/m/(2*math.pi)))#resonance
 
 def circular_microwave_zt(r,t,lamda = 1E-3):  #refer to my derivation in paper "Microwave derivation 2"
@@ -130,7 +130,7 @@ def energy_investigation(injection_time = inj,lamda=cst.c/(cst.e*0.7/cst.m_e/(2*
     [N, q_array, mass_array, E_ext, B_array, r_array_old, r_array_new, v_array_old, v_array_new]=initial_conditions()
     [v_track, r_track, t_track, Time_max, E_track, totalKE, trapU, intU]=calc_rvE(N, q_array, mass_array, E_ext, B_array, r_array_old, r_array_new, v_array_old, v_array_new,lamda,injection_time)
     if plot:
-        plot_totE(t_track, Time_max, totalKE, trapU, intU)
+        plot_totE(t_track, Time_max, totalKE, trapU, intU, injection_time=injection_time)
     #plt.subplot(223)
     #plot_potential(t_track,trapU,intU)
     return [N,v_track, r_track, t_track, Time_max, E_track, totalKE, trapU, intU]
@@ -163,7 +163,7 @@ def calc_rvE(N, q_array, mass_array, E_ext, B_array, r_array_old, r_array_new, v
     
     dr_array = np.array([np.zeros(shape=(N-1,3)),]*N)
     dr_mag_array = np.zeros(shape=(N,1))
-    E_array = np.array([np.array([0.,0.,0.]) for i in range (N)])   #initialized E_array
+    #E_array = np.array([np.array([0.,0.,0.]) for i in range (N)])   #initialized E_array
     #E_array_new = np.array([np.array([0.,0.,0.]) for i in range (N)])
 
     E_track = []
@@ -185,27 +185,8 @@ def calc_rvE(N, q_array, mass_array, E_ext, B_array, r_array_old, r_array_new, v
     while(T<Time_max):#0):#0.5*1/f_c):
         count += 1
         if T==5*delta_t:
-            print(T)
-        for i in range(N):
-        
-            if N == 1:
-                break
-            r_i = r_array_old[i]
-            #print('r_i',r_i)
-            r_others = np.append(r_array_old[0:i,:],r_array_old[i+1:N,:],axis = 0)  #get rid of the self particle from the array
-            #print('r_others=',r_others)
-            dr = -1*(r_others - r_i)
-            dr_mag = np.linalg.norm(dr)
-            E_others = k*q*dr/(dr_mag**3)
-            E_i = E_ext + np.sum(E_others, axis = 0)  #sums up all the E-field from other particles and external E-field
-            #store the calculated dr in array of size N
-            #print(dr)
-            
-            dr_array[i] = dr
-            dr_mag_array[i] = dr_mag
-
-            E_array[i] = E_i 
-           
+            print('time in calc_time= ',T)
+            print('inj = ',injection_time)
         micro_start = (Time_max - injection_time)/2
         micro_end = micro_start + injection_time
         
@@ -216,8 +197,8 @@ def calc_rvE(N, q_array, mass_array, E_ext, B_array, r_array_old, r_array_new, v
         else:
             E_microwave = 0
         #print(E_microwave)
-        E_array_new = np.copy(E_array) + E_microwave + np.copy(E_trap(r_array_old))
-        E_track.append(np.copy(E_array) + E_microwave + np.copy(E_trap(r_array_old)))
+        E_array_new = E_microwave + np.copy(E_trap(r_array_old))
+        E_track.append(E_microwave + np.copy(E_trap(r_array_old)))
  
 
         #At the end of the array, we have as a main thing: E-field whose rows correspond to each particle
@@ -524,3 +505,75 @@ def plot_potential(t_track, Time_max, trapU, intU, injection_time= inj): #readme
     time_took = time.time() - start_op_time
     print('current time = ', current_time)
     print('time took = ', time_took)
+
+def phi(w,t_track,v_track):
+    vx, vy = v_track[:,:,0],v_track[:,:,1],v_track[:,:,2]
+    phi = w*t_track - math.arccos(vx/max(vx))
+    phi2 = w*t_track - math.arcsin(vy/max(vy))
+    return phi, phi2  #readme: compare these two values to verify they are the same
+
+
+#plotting guiding center
+def guidingR(w, v_track, r_track, t_track):
+    start_op_time = time.time()
+    fig3, (ax1,ax2,ax3) = plt.subplots(1,3)
+    fig3.tight_layout()
+
+    x1, y1, z1 = r_track[:,:,0],r_track[:,:,1],r_track[:,:,2]
+    vx, vy = v_track[:,:,0],v_track[:,:,1],v_track[:,:,2]
+    
+    if np.linalg.norm(w_c) == 0:
+        w_c = 1e-10
+    Rx1 = x1 - vy/np.linalg.norm(w) #readme: I think this is x1 + vy/np.linalg.norm(w_c)
+    Ry1 = y1 - vx/np.linalg.norm(w)  
+    Rz1 = z1
+
+    ax1 = plt.subplot(131)
+    #ax1.margins(-0.1,-0.1)
+    ax1.plot(Rx1,Ry1, label = 'Guiding Center Positions')
+    ax1.scatter(x1,y1, label = 'Parcle Positions')
+    ax1.title.set_text('Guiding Center Position')
+    ax1.set_xlabel('x (m)')
+    ax1.set_ylabel('y (m)')
+    ax1.legend()
+    
+    ax2 = plt.subplot(132)
+    ax2.plot(t_track,Rx1)
+    ax2.title.set_text('Change in Guiding Center x-Position')
+    ax2.set_xlabel('time (s)')
+    ax2.set_ylabel('x (m)')
+    ax2.legend()
+    
+    ax3 = plt.subplot(133)
+    ax3.plot(t_track,Rx1)
+    ax3.title.set_text('Change in Guiding Center y-Position')
+    ax3.set_xlabel('time (s)')
+    ax3.set_ylabel('y (m)')
+    ax3.legend()
+
+    #plt.gca().set_aspect('equal')
+
+
+    plt.show()
+
+    current_time = time.time()-start_time
+    time_took = time.time() - start_op_time
+    print('current time = ', current_time)
+    print('time took = ', time_took)
+    
+def v_perp(t_track, v_track):
+    v_perp = np.stack((v_track[:,:,0],v_track[:,:,1]),axis=1)
+    v_perp_mag = np.linalg.norm(v_perp,axis=1)
+    plt.plot(t_track,v_perp_mag)
+    plt.xlabel('time (s)')
+    plt.ylabel('velocity (m/s)')
+    plt.title('V Perpendicular')
+    return v_perp
+
+def v_parallel(t_track, v_track):
+    v_par = v_track[:,:,2]
+    plt.plot(t_track,v_par)
+    plt.xlabel('time (s)')
+    plt.ylabel('velocity (m/s)')
+    plt.title('V Parallel')
+    return v_par
