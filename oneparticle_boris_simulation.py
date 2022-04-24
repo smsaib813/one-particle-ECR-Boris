@@ -156,7 +156,7 @@ def calc_rvE(N, q_array, mass_array, E_ext, B_array, r_array_old, r_array_new, v
 
     start_op_time = time.time()
     #delta_t = step_max/100
-    delta_t = step_max/10
+    delta_t = step_max/30
     T = 0
     Time_max = step_max*2500#1E-7#delta_t*100
     #Time_max = 1.05E-6 #(1.05 us)
@@ -508,9 +508,10 @@ def plot_potential(t_track, Time_max, trapU, intU, injection_time= inj): #readme
 
 def phi(w,t_track,v_track):
     vx, vy = v_track[:,:,0],v_track[:,:,1],v_track[:,:,2]
-    phi = w*t_track - math.arccos(vx/max(vx))
-    phi2 = w*t_track - math.arcsin(vy/max(vy))
-    return phi, phi2  #readme: compare these two values to verify they are the same
+    phi = w*t_track - np.arccos2(vx/max(vx))
+    phi2 = w*t_track - np.arcsin2(vy/max(vy))
+    phi3 = w*t_track - np.arctan2(-1*vy/vx)  #this should be the best way?
+    return phi, phi2, phi3 #readme: compare these two values to verify they are the same
 
 
 #plotting guiding center
@@ -522,7 +523,7 @@ def guidingR(w, v_track, r_track, t_track):
     x1, y1, z1 = r_track[:,:,0],r_track[:,:,1],r_track[:,:,2]
     vx, vy = v_track[:,:,0],v_track[:,:,1],v_track[:,:,2]
     
-    if np.linalg.norm(w_c) == 0:
+    if np.linalg.norm(w) == 0:
         w_c = 1e-10
     Rx1 = x1 - vy/np.linalg.norm(w) #readme: I think this is x1 + vy/np.linalg.norm(w_c)
     Ry1 = y1 - vx/np.linalg.norm(w)  
